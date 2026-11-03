@@ -349,9 +349,9 @@ table.inv td.act .link { margin-left: 12px; }
         '<div class="tr tax"><div></div><div></div><div class="c-qty">CGST@' + esc(inv.taxRate) + '%</div>' + amtCells(t.tax) + '</div>'
       : '<div class="tr tax"><div></div><div></div><div></div><div class="c-rs"></div><div class="c-p"></div></div>';
     return '<div class="sheet">' +
-      '<div class="sh-phones"><span class="lbl">CELL NO:</span><span class="nums">' + phones.map(function (p) { return '<span>' + esc(p) + '</span>'; }).join("") + '</span></div>' +
+      '<div class="sh-phones"><span class="lbl">MOB NO:</span><span class="nums">' + phones.map(function (p) { return '<span>' + esc(p) + '</span>'; }).join("") + '</span></div>' +
       '<div class="sh-head"><div class="sh-name">' + esc(st.name) + '</div><div class="sh-tag">' + esc(st.tagline) + '</div><div class="sh-addr">' + esc(st.address) + '</div><div class="sh-24">' + esc(st.service) + '</div></div>' +
-      '<div class="sh-mail"><span>E.mail:' + esc(st.email) + '</span><b>GSTIN:' + esc(st.gstin) + '</b></div>' +
+      '<div class="sh-mail"><span>Email:' + esc(st.email) + '</span><b>GSTIN:' + esc(st.gstin) + '</b></div>' +
       '<div class="sh-bill"><div>' + esc(st.billLabel) + '</div><div>' + esc(st.invLabel) + esc(inv.no) + '</div></div>' +
       '<div class="sh-cust"><div class="left"><div class="lhead">CUSTOMER/RECEPIENT NAME AND ADDRESS</div><div class="lbody">' +
         '<div class="cname">NAME : ' + esc(inv.custName) + '</div>' +
@@ -572,12 +572,14 @@ table.inv td.act .link { margin-left: 12px; }
         if (tok && Math.abs(q.top - tok.top) < 2 && q.left >= tok.right - 1) { tok.t += ch; tok.right = q.right; }
         else { tok = { t: ch, left: q.left, right: q.right, top: q.top, h: q.height }; toks.push(tok); }
       }
-      var fnt = isBold ? bold : reg, sd = 0, sh = 0;
-      toks.forEach(function (t) { t.safe = t.t.replace(/[^\x20-\x7E\xA0-\xFF]/g, "?"); sd += t.right - t.left; sh += fnt.widthOfTextAtSize(t.safe, fs); });
-      var ratio = 1; toks.forEach(function (t) { ratio = Math.min(ratio, (t.right - t.left) / (fnt.widthOfTextAtSize(t.safe, fs) || 1)); }); ratio = Math.max(0.8, ratio);
+      var fnt = isBold ? bold : reg;
       toks.forEach(function (t) {
-        var by = t.top + t.h * 0.78;
-        page.drawText(t.safe, { x: ox + (t.left - base.left) * k, y: PH - (oy + (by - base.top) * k), size: fs * ratio * k, font: fnt, color: black });
+        t.safe = t.t.replace(/[^\x20-\x7E\xA0-\xFF]/g, "?");
+        var by = t.top + t.h * 0.78, size = fs * 0.95 * k, wAt = fnt.widthOfTextAtSize(t.safe, fs * 0.95);
+        var sx = Math.max(0.6, Math.min(1.4, ((t.right - t.left) - fs * 0.1) / (wAt || 1)));
+        page.setFont(fnt);
+        page.pushOperators(PL.pushGraphicsState(), PL.beginText(), PL.setFillingRgbColor(0, 0, 0), PL.setFontAndSize(page.fontKey, size),
+          PL.setTextMatrix(sx, 0, 0, 1, ox + (t.left - base.left) * k, PH - (oy + (by - base.top) * k)), PL.showText(fnt.encodeText(t.safe)), PL.endText(), PL.popGraphicsState());
         var key = Math.round(t.top); var ln = lines[key] || (lines[key] = { l: t.left, r: t.right, y: by });
         ln.l = Math.min(ln.l, t.left); ln.r = Math.max(ln.r, t.right);
       });
@@ -615,7 +617,13 @@ table.inv td.act .link { margin-left: 12px; }
   }
   function registerSW() {
     try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (e) {}
-    try { if ("serviceWorker" in navigator && /^https?:/.test(location.protocol)) navigator.serviceWorker.register("sw.js"); } catch (e) {}
+    try {
+      if ("serviceWorker" in navigator && /^https?:/.test(location.protocol)) {
+        var had = !!navigator.serviceWorker.controller, done = false;
+        navigator.serviceWorker.addEventListener("controllerchange", function () { if (had && !done) { done = true; location.reload(); } });
+        navigator.serviceWorker.register("sw.js");
+      }
+    } catch (e) {}
     try { var t = new File(["x"], "a.pdf", { type: "application/pdf" }); if (navigator.canShare && navigator.canShare({ files: [t] }) && /Android|iPhone|iPad/i.test(navigator.userAgent)) $("btn-share").hidden = false; } catch (e) {}
   }
   function exportBackup() {
